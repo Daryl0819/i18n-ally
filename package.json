@@ -1,8 +1,8 @@
 {
-  "publisher": "lokalise",
-  "name": "i18n-ally",
-  "version": "2.8.1",
-  "displayName": "i18n Ally",
+  "publisher": "bk",
+  "name": "bk-i18n-ally",
+  "version": "2.8.8",
+  "displayName": "BK i18n Ally",
   "description": "🌍 All in one i18n extension for VS Code",
   "keywords": [
     "vue",
@@ -41,16 +41,16 @@
     "test:update": "cross-env CHAI_JEST_SNAPSHOT_UPDATE_ALL=true nr test:unit"
   },
   "dependencies": {
-    "@babel/parser": "^7.15.3",
-    "@babel/traverse": "^7.15.0",
+    "@babel/parser": "^7.20.15",
+    "@babel/traverse": "^7.17.3",
     "bcp-47-normalize": "^2.0.1",
     "change-case": "^4.1.2",
     "consolidate": "^0.16.0",
     "esm": "^3.2.25",
     "fast-glob": "^3.2.7",
-    "fluent-vue-cli": "^3.0.0-beta.19",
+    "fluent-vue-cli": "^3.0.4",
     "glob-gitignore": "^1.0.14",
-    "htmlparser2": "^6.1.0",
+    "htmlparser2": "7.2.0",
     "iconv-lite": "^0.6.3",
     "ini": "^2.0.0",
     "js-yaml": "^4.1.0",
@@ -866,7 +866,7 @@
         },
         "i18n-ally.preferredDelimiter": {
           "type": "string",
-          "default": "-",
+          "default": "",
           "description": "%config.preferred_delimiter%"
         },
         "i18n-ally.readonly": {

@@ -5,6 +5,7 @@ import { DefaultDynamicExtractionsRules, DefaultExtractionRules, ExtractionRule 
 import { shouldExtract } from '../shouldExtract'
 import { ExtractionBabelOptions } from './options'
 import { DetectionResult } from '~/core/types'
+import { Config } from '~/core'
 
 const defaultOptions: Required<ExtractionBabelOptions> = {
   ignoredJSXAttributes: ['class', 'className', 'key', 'style', 'ref', 'onClick'],
@@ -100,6 +101,9 @@ export function detect(
     // ignore `console.xxx`
     CallExpression(path: any) {
       const callee = path.get('callee')
+      const name = callee.node.name ?? `${callee.node?.object?.name}.${callee.node?.property?.name}`
+      if (Config.recordIgnoreCalleeNames.includes(name))
+        recordIgnore(path)
       if (!callee.isMemberExpression()) return
       if (isGlobalConsoleId(callee.get('object')))
         recordIgnore(path)

@@ -1,11 +1,11 @@
-import { commands, TextDocument, Uri, window, workspace } from 'vscode'
+import { commands, TextDocument, Uri, window, workspace, Range } from 'vscode'
 import { notNullish } from '@antfu/utils'
 import fs from 'fs-extra'
 import { DetectHardStrings } from './detectHardStrings'
 import { ExtensionModule } from '~/modules'
 import { Commands } from '~/commands'
-import { extractHardStrings, generateKeyFromText } from '~/core/Extract'
-import { Config, Global } from '~/core'
+import { extractHardStrings, generateKeyFromText, staticAttrsToDynamic } from '~/core/Extract'
+import { Config, Global, CurrentFile } from '~/core'
 import { parseHardString } from '~/extraction/parseHardString'
 import { DetectionResultToExtraction } from '~/editor/extract'
 import { Log } from '~/utils'
@@ -89,17 +89,66 @@ export async function BatchHardStringExtraction(...args: any[]) {
 
           usedKeys.push(keypath)
 
+          let namespace: string | undefined = Config.namespace ? Config.defaultNamespace : undefined
+          let rewriteText = text
+          if (Config.namespace) {
+            const files = CurrentFile.loader.files
+            for (const file of files) {
+              if (file.namespace && text.startsWith(file.namespace)) {
+                namespace = file.namespace
+                rewriteText = text.slice(namespace.length + 1)
+              }
+            }
+          }
+
           return {
             range,
             replaceTo: templates[0],
             keypath,
-            message: text,
+            message: rewriteText,
             locale: Config.displayLanguage,
+            namespace,
           }
         })
           .filter(notNullish),
         true,
       )
+
+      // replace attrs
+      const resultForAttrs = await DetectHardStrings(document, false)
+      if (resultForAttrs) {
+        await staticAttrsToDynamic(
+          document,
+          resultForAttrs
+            .filter(i => i.source === 'html-attribute' && !i.isDynamic && i.fullStart !== undefined && i.fullText)
+            .map((detection) => {
+              const start = detection.fullStart!
+              const end = detection.start - 2
+
+              const text = detection.fullText!.split('=')[0]
+              const options = {
+                isDynamic: detection.isDynamic,
+                document,
+                text: '',
+                rawText: text.trim(),
+                isInsert: false,
+                range: new Range(
+                  document.positionAt(start),
+                  document.positionAt(end),
+                ),
+              }
+
+              return {
+                range: options.range,
+                replaceTo: `:${text}`,
+                keypath: '',
+                message: text,
+                locale: Config.displayLanguage,
+              }
+            })
+            .filter(notNullish),
+        )
+      }
     }
     catch (e) {
       Log.error(`Failed to extract ${document.fileName}`)

@@ -188,8 +188,8 @@ export class Config {
     return this.getConfig<boolean>('fullReloadOnChanged') || false
   }
 
-  static get preferredDelimiter(): string {
-    return this.getConfig<string>('preferredDelimiter') || '-'
+  static get preferredDelimiter() {
+    return this.getConfig<string>('preferredDelimiter')
   }
 
   static get _pathMatcher(): string | undefined {
@@ -558,5 +558,10 @@ export class Config {
 
   static get telemetry(): boolean {
     return workspace.getConfiguration().get('telemetry.enableTelemetry') as boolean
+  }
+
+  // babel CallExpression ignore callees names
+  static get recordIgnoreCalleeNames(): string[] {
+    return this.getConfig('custom.recordIgnoreCalleeNames') || []
   }
 }
