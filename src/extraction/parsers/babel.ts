@@ -83,6 +83,32 @@ export function detect(
 
   traverse(ast, {
     StringLiteral(path: any) {
+      // 判断是否在 export default 内部
+      const isInsideExportDefault = path.findParent((p: any) => p.isExportDefaultDeclaration())
+
+      // 在 export default 外部
+      if (!isInsideExportDefault) {
+        handlePath(path, 'js-string-not-this')
+        return
+      }
+
+      // 判断是否在 props 中
+      const isInsideProps = path.findParent((p: any) => {
+        // 检查是否在 props 对象属性中
+        if (p.isObjectProperty()) {
+          const objectProperty = p
+          return objectProperty.node.key.name === 'props'
+                || objectProperty.node.key.value === 'props'
+        }
+        return false
+      })
+
+      // 在 props 内部
+      if (isInsideProps) {
+        handlePath(path, 'js-string-not-this')
+        return
+      }
+
       handlePath(path, 'js-string')
     },
     TemplateLiteral(path: any) {
@@ -102,6 +128,13 @@ export function detect(
     CallExpression(path: any) {
       if (customCallExpression) customCallExpression(path, recordIgnore)
       const callee = path.get('callee')
+      const name = callee.node?.name ?? callee.node?.property?.name
+      // exclude $t
+      if (name?.match(/(?:^|[$.\b])t\w?/)) {
+        path.skip()
+        return
+      }
+
       if (!callee.isMemberExpression()) return
       if (isGlobalConsoleId(callee.get('object')))
         recordIgnore(path)
