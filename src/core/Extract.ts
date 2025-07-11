@@ -1,7 +1,7 @@
 import { basename, extname } from 'path'
 import { TextDocument, window } from 'vscode'
 import { nanoid } from 'nanoid'
-import limax from 'limax'
+// import limax from 'limax'
 import { Config, Global } from '../extension'
 import { ExtractInfo } from './types'
 import { CurrentFile } from './CurrentFile'
@@ -9,6 +9,7 @@ import { changeCase } from '~/utils/changeCase'
 
 export function generateKeyFromText(text: string, filepath?: string, reuseExisting = false, usedKeys: string[] = []): string {
   let key: string | undefined
+  const originText = text
 
   // already existed, reuse the key
   // mostly for auto extraction
@@ -26,13 +27,16 @@ export function generateKeyFromText(text: string, filepath?: string, reuseExisti
   else if (keygenStrategy === 'empty') {
     key = ''
   }
-  else if (keygenStrategy === 'source') {
-    key = text
-  }
   else {
-    text = text.replace(/\$/g, '')
-    key = limax(text, { separator: Config.preferredDelimiter, tone: false })
-      .slice(0, Config.extractKeyMaxLength ?? Infinity)
+    if (Config.preferredDelimiter) {
+      text = text
+        .replace(/\$|\s/g, '')
+        // 过滤所有特殊字符
+        .replace(/^[^A-Za-z0-9\p{Unified_Ideograph}]+|[^A-Za-z0-9\p{Unified_Ideograph}]+$/giu, '')
+        // 将文案中的特殊字符转化成下划线
+        .replace(/[^A-Za-z0-9\p{Unified_Ideograph}]+/giu, Config.preferredDelimiter)
+    }
+    key = text
   }
 
   const keyPrefix = Config.keyPrefix
@@ -52,7 +56,11 @@ export function generateKeyFromText(text: string, filepath?: string, reuseExisti
     key = 'key'
 
   // suffix with a auto increment number if same key
-  if (usedKeys.includes(key) || CurrentFile.loader.getNodeByKey(key)) {
+  const node = CurrentFile.loader.getNodeByKey(key)
+  if (usedKeys.includes(key) || (node?.keypath === originText)) {
+    return key
+  }
+  else if (node && node?.keypath !== originText) {
     const originalKey = key
     let num = 0
 
@@ -77,13 +85,24 @@ export async function extractHardStrings(document: TextDocument, extracts: Extra
 
   extracts.sort((a, b) => b.range.start.compareTo(a.range.start))
 
+  const isReplaced: ExtractInfo[] = []
   // replace
   await editor.edit((editBuilder) => {
     for (const extract of extracts) {
+      const hasReplaced = isReplaced.find(item => (
+        item.message === extract.message
+        && (extract.range.contains(item.range) || item.range.contains(extract.range))
+      ))
+
+      if (hasReplaced)
+        continue
+
       editBuilder.replace(
         extract.range,
         extract.replaceTo,
       )
+
+      isReplaced.push(extract)
     }
   })
 
@@ -97,11 +116,46 @@ export async function extractHardStrings(document: TextDocument, extracts: Extra
         keypath: e.keypath!,
         value: e.message!,
         locale: e.locale || sourceLanguage,
+        namespace: e.namespace,
       })),
   )
 
   if (saveFile)
     await document.save()
+
+  CurrentFile.invalidate()
+}
+
+// static attrs to dynamic attrs
+export async function staticAttrsToDynamic(document: TextDocument, extracts: ExtractInfo[]) {
+  if (!extracts.length)
+    return
+
+  const editor = await window.showTextDocument(document)
+
+  extracts.sort((a, b) => b.range.start.compareTo(a.range.start))
+
+  const isReplaced: ExtractInfo[] = []
+  // replace
+  await editor.edit((editBuilder) => {
+    for (const extract of extracts) {
+      const hasReplaced = isReplaced.find(item => (
+        item.message === extract.message
+        && (extract.range.contains(item.range) || item.range.contains(extract.range))
+      ))
+
+      if (hasReplaced)
+        continue
+
+      editBuilder.replace(
+        extract.range,
+        extract.replaceTo,
+      )
+      isReplaced.push(extract)
+    }
+  })
+
+  await document.save()
 
   CurrentFile.invalidate()
 }

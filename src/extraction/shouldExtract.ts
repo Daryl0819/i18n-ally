@@ -1,9 +1,9 @@
 import { DefaultExtractionRules, ExtractionRule, ExtractionScore } from './rules'
 
-export function shouldExtract(str: string, rules: ExtractionRule[] = DefaultExtractionRules): boolean {
+export function shouldExtract(str: string, rules: ExtractionRule[] = DefaultExtractionRules, attrName?: string): boolean {
   let extract = false
   for (const rule of rules) {
-    const result = rule.shouldExtract(str)
+    const result = rule.shouldExtract(str, attrName)
     if (result === ExtractionScore.MustExclude)
       return false
     if (result === ExtractionScore.MustInclude)
